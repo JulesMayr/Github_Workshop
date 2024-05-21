@@ -62,7 +62,7 @@ library(tidyr) # data manipulation
 library(knitr) # data manipulation
 library(ggplot2)  # plotting
 library(viridis)  # pretty colours
-source("../03_functions/PlottingFunctions.R") # for the SE function and plotting 
+source("../scripts/PlottingFunctions.R") # for the SE function and plotting 
 
 options(stringsAsFactors = F)
 #to make sure that all strings are treated as characters and not factors unless specified
@@ -76,7 +76,7 @@ options(stringsAsFactors = F)
 # refers to simulation part 1 and 2
 
 #load Beta1_all_scales
-load("../02_output_data/Beta1_all_scales.RData")
+load("../data/processed/Beta1_all_scales.RData")
 
 #rearrange
 Beta1_all_scales <- Beta1_all_scales[,c(1,17,2:16)]

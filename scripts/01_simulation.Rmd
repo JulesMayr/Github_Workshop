@@ -41,11 +41,11 @@ library(tidyr) # data manipulation
 library(knitr) # data manipulation
 
 #load data
-load("../01_data/fake_data_11sp.RData")
+load("../data/raw/fake_data_11sp.RData")
 
 
 #load VariancePartitioning Function for the calculation of stability metrics
-source("../03_functions/Wang_et_al_2019_VariancePartitioning.r")
+source("../scripts/Wang_et_al_2019_VariancePartitioning.r")
 
 options(stringsAsFactors = F)
 #to make sure that all strings are treated as characters and not factors unless specified
@@ -438,7 +438,7 @@ Beta1_all_scales <- do.call("rbind", Areas_unique_11sp)
 Beta1_all_scales$Intended_BetaDiv <- as.numeric(rep(1, nrow(Beta1_all_scales)))
  
 # save as .RData so that it is easier to re-use
-save(Beta1_all_scales, file = "../02_output_data/Beta1_all_scales.RData")
+save(Beta1_all_scales, file = "../data/processed/Beta1_all_scales.RData")
 
 ```
 

@@ -1,4 +1,4 @@
-# My Project
+# New Title
 
 This project template is a demonstration for the RepCo workshop.
 
