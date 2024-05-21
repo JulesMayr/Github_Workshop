@@ -1,0 +1,57 @@
+---
+title: "From simulated data to the final dataset needed for statistical analysis"
+author: "Julia Mayr"
+date: "2024-05-21"
+output: html_document
+---
+
+```{r Setup, include=FALSE}
+
+# include: whether to include anything from a code chunk in the output document --> when include = F, this whole chunk is excluded in the output!
+
+knitr::opts_chunk$set(echo = TRUE)
+# Sets the R markdown options so that the code is displayed in the final html file. If it is set to FALSE then the code isn't displayed only the result is 
+
+rm(list=ls()) #clears my global environment
+
+# Load libraries
+library(vegan) # to calculate biodiversity measures
+library(dplyr) # data manipulation
+library(tidyr) # data manipulation
+library(knitr) # data manipulation
+library(ggplot2)  # plotting
+library(viridis)  # pretty colours
+
+#load simulated data
+load("../data/processed/Beta1_all_scales.RData")
+
+#load functions
+source("../scripts/PlottingFunctions.R") # for the SE function and plotting 
+
+options(stringsAsFactors = F)
+#to make sure that all strings are treated as characters and not factors unless specified
+
+
+```
+
+```{r put the full dataset together}
+
+#rearrange for easier visualization
+Beta1_all_scales <- Beta1_all_scales[,c(1,17,2:16)]
+
+#give shorter name
+full_data1 <- Beta1_all_scales
+
+#calculate gamma diversity and add new column to full data 
+gammadiv_calc <- full_data1[,c("avg_richness","Beta_div")]
+full_data1$Gamma_div <- apply(gammadiv_calc, 1, prod)
+    ## remember that gamma = alpha x beta --> when beta = 1, alpha div == gamma div
+    ## this might be more interesting for beta-and-scale-manipulation dataset --> but it also gives us a continuous predictor variable for x
+
+#only use data that I need
+data1 <- full_data1[,c("Area","div","Intended_BetaDiv","Alpha_stab","Gamma_stab","Spatial_AS","avg_richness","Beta_div","Gamma_div")]
+
+#save data in 01_data so that it is easier to reuse for more analyses - I save it in that folder to not confuse it with other intermediate outputs of the simulation
+save(my_data, file = "../02_output_data/my_data.RData")
+
+```

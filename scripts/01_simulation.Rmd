@@ -129,6 +129,7 @@ stability_data_scale1_11sp$Intended_BetaDiv <- as.numeric(rep(1, nrow(stability_
 Step 1. Separate years and then species compositions so that we can subsample within them. 
 
 ```{r divide dataset into a list of 4, results = FALSE}
+
 fake_data_11sp$total.biomass <- rowSums(fake_data_11sp[, 6:16])
 
 year.id <- c(1:4) # create a vector containing all the years
