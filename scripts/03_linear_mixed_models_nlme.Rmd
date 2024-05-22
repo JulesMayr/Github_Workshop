@@ -1,0 +1,378 @@
+---
+title: "LMMs"
+author: "Julia Mayr"
+date: "17/05/2024"
+output: html_document
+---
+
+This scripts runs the statistical test and prints the figures for the relationship between landsape-wide species richness (gamma diversity) and temporal stability (gamma stability).
+
+We are running mixed effects models with planted alpha diversity as a random effect, not necessarily because we believe that these levels are indeed random. Rather, this is done to allow different diversity levels to behave differently. This decision was made for the following reasons:
+* Heterogeneous variances of the residuals
+* Because the different alpha diversity levels posed a major constraint in our simulations with regard to the range of beta diversity that could be achieved for each of these levels.
+  As a result, preliminary data analyses resulted in planted diversity levels always appearing as a significant factor. 
+* Nearly half of the models resulted in a singular fit warning when the heterogeneity of variances was addressed. 
+  By including area and especially diversity in both the random and fixed effects, singularity and convergence issues could be avoided.
+    ** *Note* that in particular to avoid singularity and convergence issues, alpha diversity (div) is included as a continuous variable in the fixed effects
+    ** To allow for random slopes at the different areas, Area also needs to be included as a continuous variable
+
+**Mixed effects models allow to add more complexity:**
+
+1. Mixed models make fewer assumptions - they don't assume that the variance is homogeneous and they don't assume that the relationship between x and y is linear. 
+2. Sometimes the non-normality of the residuals of an lm() can be tied up in responses to random factors that were previously not included. 
+   By including these factors - we can often normalize our residuals. 
+
+Assumptions:
+1. Our residuals are normally distributed 
+2. Our residuals are independent 
+
+We opted for the nlme package, as it allows to fit mixed effects models with different variance structures. These models will be fit following the Zuur et al. (2009) protocol by starting from the maximum model.
+
+
+```{r Setup, include=FALSE}
+
+# include: whether to include anything from a code chunk in the output document --> when include = F, this whole chunk is excluded in the output!
+
+knitr::opts_chunk$set(echo = TRUE)
+# Sets the R markdown options so that the code is displayed in the final html file. If it is set to FALSE then the code isn't displayed only the result is 
+
+rm(list=ls()) #clears my global environment
+
+# Load libraries
+library(dplyr) # data manipulation
+library(tidyr) # data manipulation
+library(knitr) # data manipulation
+library(car)   # for vif command 
+library(ggplot2)  # plotting
+library(viridis)  # pretty colours
+library(nlme)     # statistics - to fit and run mixed effects models (lme)
+library(effects)  # create displays for linear, generalized linear, and other models
+library(ggeffects)  # create tidy data frames of marginal effects for 'ggplot' from model outputs
+
+source("../scripts/PlottingFunctions.R") # for the SE function and plotting
+
+#load data
+load("../data/processed/my_data.RData")
+
+options(stringsAsFactors = F)
+#to make sure that all strings are treated as characters and not factors unless specified
+
+```
+
+
+######################################################################################################################################################################################
+
+
+```{r log-transformations}
+
+#transform all variables I could potentially need so that I can easily use them 
+my_data$log.gamma <- log(my_data$Gamma_stab+1)
+my_data$log.gammadiv <- log(my_data$Gamma_div+1)
+my_data$area.factor <- as.factor(my_data$Area)
+my_data$log.area <- log(my_data$Area+1)
+my_data$div.factor <- as.factor(my_data$div)
+my_data$log.div <- log(my_data$div+1)
+
+```
+
+```{r 1. fit model with GLS and choose variance structure}
+
+gls7 <- gls(log.gamma~log.gammadiv * log.div * log.area, data=my_data)
+
+###### Add different variance structures -----------------------------------------
+
+  ###### V1: varFixed =================================================================
+
+        #Fixed Variance assumes that the variance changes proportionally with values of x
+
+        vs1 <- varFixed(~log.gammadiv) #assigning the variance structure to a variable called vs2
+        gls7.1 <- gls(log.gamma~log.gammadiv * log.div * log.area,
+                      weights = vs1,
+                      data=my_data)  
+        gls7.1
+        plot(gls7.1)
+        
+  ###### V2: varIdent =================================================================
+        
+        #Different variances per stratum for each level of Area (our factor) to have its own variance
+        #I have no grouping variable 
+        
+  ###### V3: varPower =================================================================
+        
+        #Power of the variance covariate assumes that the variance increases as a power of the absolute values of x
+        #should not be used if x=0, but this is not the case with our dataset
+        
+        vs3 <- varPower(form = ~log.gammadiv) #assigning the variance structure to a variable called vs4
+        gls7.3 <- gls(log.gamma~log.gammadiv * log.div * log.area, 
+                      weights = vs3,
+                      data=my_data)  
+        gls7.3
+        plot(gls7.3)
+
+  ###### V4: varExp ===================================================================
+        
+        #Exponential of the variance covariate assumes that the variance changes as an exponential of x
+        
+        vs4 <- varExp(form = ~log.gammadiv) #assigning the variance structure to a variable called vs4
+        gls7.4 <- gls(log.gamma~log.gammadiv * log.div * log.area, 
+                      weights = vs4,
+                      data=my_data)  
+        gls7.4
+        plot(gls7.4)
+        
+  ###### V5: varConstPower ============================================================
+        
+        #Constant plus power of the variance covariate assumes that the variance changes proportionally to a constant plus the power of the values of x
+        
+        vs5 <- varConstPower(form = ~log.gammadiv) #assigning the variance structure to a variable called vs5
+        gls7.5 <- gls(log.gamma~log.gammadiv * log.div * log.area, 
+                      weights = vs5,
+                      data=my_data)  
+        gls7.5
+        plot(gls7.5)
+        
+  ###### V6: varComb ==================================================================
+        
+        #a combination of variance functions with varIdent
+        #N/A here
+        
+  ##### Choose the best gls ===========================================================
+        
+        anova(gls7, gls7.1, gls7.3, gls7.4, gls7.5) # gls7.4 has the lowest AIC and BIC
+
+```
+
+```{r 2. fit LME model}
+
+# using the variance structure that was selected above
+# using REML
+
+###### V4: varExp ===================================================================
+        
+        #Exponential of the variance covariate assumes that the variance changes as an exponential of x
+        
+        vs4 <- varExp(form = ~log.gammadiv) #assigning the variance structure to a variable called vs4
+        lme7.4 <- lme(log.gamma~log.gammadiv * log.div * log.area, random=~1|div.factor, 
+                      weights = vs4,
+                      data=my_data, 
+                      method ="REML")  
+        lme7.4
+        plot(lme7.4)
+        
+# Compare GLS and LME 
+anova(gls7.4,lme7.4)
+
+#LME is a better fit as it has both a lower AIC and BIC
+        
+```
+
+```{r 3. choose fixed effects}
+
+# use ML to select the fixed effects with models that have the same random structure
+
+# 1. For RIM =========================================================================
+
+    #### 1. Maximum Model ------------------------------------------------------
+
+            vs4 <- varExp(form = ~log.gammadiv) #assigning the variance structure to a variable called vs4
+            lme7.4.1 <- lme(log.gamma~log.gammadiv * log.div * log.area, random=~1|div.factor, 
+                          weights = vs4,
+                          data=my_data, 
+                          method ="ML") #==lme7.4 
+            vif(lme7.4.1)
+            
+    #### 2. Take out log.div ---------------------------------------------------
+           
+            lme7.4.2 <- lme(log.gamma~log.gammadiv * log.area, random=~1|div.factor, 
+                          weights = vs4,
+                          data=my_data, 
+                          method ="ML") 
+             vif(lme7.4.2)
+           
+             
+    #### 3. Take out log.area --------------------------------------------------
+            
+            lme7.4.3 <- lme(log.gamma~log.gammadiv * log.div, random=~1|div.factor, 
+                          weights = vs4,
+                          data=my_data, 
+                          method ="ML")  
+            vif(lme7.4.3) #for these models, this one has the lowest values for vif
+             
+    #### 4. Minimum Model ------------------------------------------------------
+            
+            lme7.4.4 <- lme(log.gamma~log.gammadiv, random=~1|div.factor, 
+                          weights = vs4,
+                          data=my_data, 
+                          method ="ML")  
+            
+    #### 5. Select the best model
+            
+            anova(lme7.4.1, lme7.4.2, lme7.4.3, lme7.4.4) 
+            #the maximum model has the lowest AIC and BIC and can be said to be the most parsimonious (i.e. lme7.4.1 == lme7.4)
+
+
+```
+
+```{r 4. choose random effects}
+
+###### V5: varConstPower 
+
+## remember that this was the best variance structure
+## RIM
+
+#Constant plus power of the variance covariate assumes that the variance changes proportionally to a constant plus the power of the values of x
+
+vs4 <- varExp(form = ~log.gammadiv) #assigning the variance structure to a variable called vs4
+lme7A.4 <- lme(log.gamma~log.gammadiv * log.div * log.area, random=~1|div.factor, 
+              weights = vs4,
+              data=my_data, 
+              method ="REML")  
+lme7.4
+plot(lme7A.4)
+
+vif(lme7A.4) #I calculate the variance inflation factor here to check for multicollinearity even though we are not going into that for the report but I want to still include it for later analyses
+
+#For the RISM I get a convergence error code!
+#That means I have to choose the RIM
+
+```
+
+```{r 5. validate and plot chosen model}
+
+#AIC selects for the RISM (lme7A.4) as it is 2.2 lower than for the RIM
+
+# Validate and Plot ==================================================================
+
+plot(lme7A.4) #plot the residual vs. fitted plot to inspect whether the variances of the residuals are homogeneous
+qqnorm(resid(lme7A.4)) #plot the normal qq plot of the residuals
+qqline(resid(lme7A.4)) #add the 1-1 line
+
+anova(lme7A.4)
+summary(lme7A.4)
+
+
+#plot 
+my_data$lme7A.4.fixef <- fitted(lme7A.4, level = 0) #extract the fitted values for the fixed effects
+my_data$lme7A.4.ranef <- fitted(lme7A.4, level = 1) #extract the fitted values for the random effects
+
+p1 <- ggplot(data=my_data, aes(x=log.gammadiv, y=log.gamma,
+                                  group=log.area,
+                                  fill=log.area))+
+  geom_point(aes(col=log.area),
+             shape=20,
+             size=2,
+             alpha=0.3)+
+  geom_line(aes(y=lme7A.4.fixef),
+            size=2,
+            colour='black')+ #plot line for the fixed effect based on fitted values
+  geom_line(aes(y=lme7A.4.ranef, col=log.area), # don't need "group=div.factor" if I also specify "col=div.factor as it automatically groups them
+            size=1,
+            alpha=1)+ #plot line for the random effects based on fitted values
+  xlab("Gamma Diversity (log)")+
+  ylab("Gamma Stability (log)")+
+  scale_fill_gradientn(name="Area (log)", colors=viridis(8))+ #specifying the color palette used - for continuous variables
+  scale_colour_gradientn(name="Area (log)", colors=viridis(8))+ #specifying the gammadivme color palette and label for fill and color so that they appear in the gammadivme legend
+  facet_grid(.~div.factor)+
+  theme_bw()+
+  theme(axis.title = element_text(size=15, colour="black"), #to modify axes appearance
+        axis.line.x = element_line(colour = "black"),
+        axis.line.y = element_line(colour = "black"),
+        axis.text.x = element_text(size=10,colour="black"),
+        axis.text.y = element_text(size=10,colour="black"),
+        axis.ticks = element_line(colour="black"),
+        panel.border = element_rect(colour="black", fill=NA))
+p1
+
+# Backtransform ======================================================================
+
+my_data$back.gammadiv <- exp(my_data$log.gammadiv-1)
+my_data$back.area <- exp(my_data$log.area-1)
+my_data$back.gamma <- exp(my_data$log.gamma-1)
+my_data$back.lme7A.4.fitted.fixef <- exp(my_data$lme7A.4.fixef-1)
+my_data$back.lme7A.4.fitted.ranef <- exp(my_data$lme7A.4.ranef-1)
+
+
+#plot
+p1.back <- ggplot(data=my_data, aes(x=back.gammadiv, y=back.gamma,
+                                  group=back.area,
+                                  fill=back.area))+
+  geom_point(aes(col=back.area),
+             shape=20,
+             size=2,
+             alpha=0.3)+
+  geom_line(aes(y=back.lme7A.4.fitted.fixef),
+            size=2,
+            colour='black')+ #plot line for the fixed effect based on fitted values
+  geom_line(aes(y=back.lme7A.4.fitted.ranef, col=back.area), # don't need "group=div.factor" if I also specify "col=div.factor as it automatically groups them
+            size=1,
+            alpha=1)+ #plot line for the random effects based on fitted values
+  xlab("Gamma Diversity")+
+  ylab("Gamma Stability")+
+  scale_fill_gradientn(name="Area", colors=viridis(8))+ #specifying the color palette used - for continuous variables
+  scale_colour_gradientn(name="Area", colors=viridis(8))+ #specifying the gammadivme color palette and label for fill and color so that they appear in the gammadivme legend
+  facet_grid(.~div.factor)+
+  theme_bw()
+p1.back
+
+# Plot marginal effects =========================================================
+
+x1 <- ggeffect(lme7A.4, terms="log.gammadiv", type="re")
+x1.plot<- plot(x1, show.title=F)+
+  geom_line(size=2)+
+  xlab("Gamma Diversity (log)")+
+  ylab("Gamma Stability (log)")+
+  geom_point(data=my_data,aes(x=log.gammadiv, y=log.gamma),
+             alpha=0.1,
+             colour='black')+
+  theme(axis.title = element_text(size=15, colour="black"), #to modify axes appearance
+        axis.line.x = element_line(colour = "black"),
+        axis.line.y = element_line(colour = "black"),
+        axis.text.x = element_text(size=10,colour="black"),
+        axis.text.y = element_text(size=10,colour="black"),
+        axis.ticks = element_line(colour="black"),
+        panel.border = element_rect(colour="black", fill=NA))
+x1.plot
+  
+
+x2 <- ggeffect(lme7A.4, terms="log.area", type="re")
+x2.plot <- plot(x2, show.title=F)+
+  geom_line(size=2)+
+  xlab("Area (log)")+
+  ylab("Gamma Stability (log)")+
+  geom_point(data=my_data,aes(x=log.area, y=log.gamma),
+             alpha=0.1,
+             colour='black')+
+  theme(axis.title = element_text(size=15, colour="black"), #to modify axes appearance
+        axis.line.x = element_line(colour = "black"),
+        axis.line.y = element_line(colour = "black"),
+        axis.text.x = element_text(size=10,colour="black"),
+        axis.text.y = element_text(size=10,colour="black"),
+        axis.ticks = element_line(colour="black"),
+        panel.border = element_rect(colour="black", fill=NA))
+x2.plot
+
+
+x3 <- ggeffect(lme7A.4, terms="log.div", type="re")
+x3.plot <- plot(x3, show.title=F)+
+  geom_line(size=2)+
+  xlab("Planted Alpha Diversity (log)")+
+  ylab("Gamma Stability (log)")+
+  geom_point(data=my_data,aes(x=log.div, y=log.gamma),
+             alpha=0.1,
+             colour='black')+
+  theme(axis.title = element_text(size=15, colour="black"), #to modify axes appearance
+        axis.line.x = element_line(colour = "black"),
+        axis.line.y = element_line(colour = "black"),
+        axis.text.x = element_text(size=10,colour="black"),
+        axis.text.y = element_text(size=10,colour="black"),
+        axis.ticks = element_line(colour="black"),
+        panel.border = element_rect(colour="black", fill=NA))
+x3.plot
+
+```
+
+```{r end}
+
+sessionInfo()
+
+```

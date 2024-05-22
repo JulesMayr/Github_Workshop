@@ -49,9 +49,10 @@ full_data1$Gamma_div <- apply(gammadiv_calc, 1, prod)
     ## this might be more interesting for beta-and-scale-manipulation dataset --> but it also gives us a continuous predictor variable for x
 
 #only use data that I need
-data1 <- full_data1[,c("Area","div","Intended_BetaDiv","Alpha_stab","Gamma_stab","Spatial_AS","avg_richness","Beta_div","Gamma_div")]
+my_data <- full_data1[,c("Area","div","Intended_BetaDiv","Alpha_stab","Gamma_stab","Spatial_AS","avg_richness","Beta_div","Gamma_div")]
 
 #save data in 01_data so that it is easier to reuse for more analyses - I save it in that folder to not confuse it with other intermediate outputs of the simulation
-save(my_data, file = "../02_output_data/my_data.RData")
+save(my_data, file = "../data/processed/my_data.RData")
 
 ```
+

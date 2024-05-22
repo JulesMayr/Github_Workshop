@@ -5,35 +5,25 @@ date: "17/05/2024"
 output: html_document
 ---
 
-While this can be seen as one big simulation, to make it easier to think through, it is split up into several different parts (stability metrics are always calculated):
+This document represents the landscape simulations discussed in the **METHODS** section of the manuscript.
+
+While this can be seen as one big simulation, to make it easier to think through and understand, it is split up into several different parts:
 * Part1: Calculating stability metrics at the sub-plot level
   ** this essentially represents stability at the smallest scale (Area = 1)
 * Part 2: Aggregate plots so that beta diversity is maintained at 1 and scale is increased 
-  ** this means manipulate scale without manipulating species compositions
+  ** this means we manipulate scale without manipulating species compositions
   ** the species compositions will be used and aggregated step-wise from 2-8 communities according to the original design
-* Part 3: This part manipulates beta diversity and area simultaneously
-  ** for this part (and the following) it is especially important to note how when we talk about beta diversity, we talk about "intended" beta diversity
-  *** e.g if the intended beta diversity is 2, then 2 any of those areas contain a combination of plots with 2 different species compositions
-  *** the species compositions are the SOWN species compositions, where some plots may share some species
-  *** as a result, a continuous gradient of "realized" beta diversity can be obtained
-* Part 4: Aggregate subplots with different species compositions to obtain the maximum beta diversity for each area 
-  ** i.e. beta diversity = 2 and Area = 2 etc. until beta diversity = 8 and Area = 8
-  *** again, it needs to be noted that some subplots may share some species
-  ** this is the final step of the simulation and is represented by the upper diagonal in Figure 3
-  
-**NOTE**: The entire script cannot be run in one single time as I includes what I call "Intermezzi" where I restart the R session and clear the global environment to not overload
-          R's memory. The advantage of this, however, is that each part can also be run on its own once the previous parts have been run and key outputs have been saved.
- 
+
+*Other Parts of the simulation are not included for the purpose of this course!*
 
 ```{r Setup, results = FALSE} 
-# include: whether to include anything from a code chunk in the output document --> when include = F, this whole chunk is excluded in the output!
 
 knitr::opts_chunk$set(echo = TRUE)
 # Sets the R markdown options so that the code is displayed in the final html file. If it is set to FALSE then the code isn't displayed only the result is
 
 rm(list = ls()) # clears my global environment
 
-# Load libraries
+# Load libraries needed
 library(vegan) # calculate diversity metrics - without this package the Wang et al. Function does not work
 library(dplyr) # data manipulation
 library(tidyr) # data manipulation
@@ -51,14 +41,16 @@ options(stringsAsFactors = F)
 ```
 
 # Part 1: Retrieve Stability metrics at the sub-plot level
-
+  
+  *NOTE*: Here it is less of a simulation, but rather an calculation of stability metrics across all the years sampled (i.e. 4) for every subplot.
 ```{r beta_div1 & Area1, results = FALSE}
+
 # create new dataframe to store stability metrics per scale
 variability_data_scale1 <- data.frame(sampleID = character(), CompID = character(), div = numeric(), Species_var = numeric(), Alpha_var = numeric(), Metapopulation_var = numeric(), Gamma_var = numeric(), Pop_synch = numeric(), Spatial_synch = numeric(), Species_synch = numeric(), Metapopulation_synch = numeric(), avg_richness = numeric(), Beta_div = numeric(), temp_mean = numeric(), temp_sd = numeric())
 ## species_var == species variability or population variability
-## these are all variability metrics --> stability is the inverse of variability
+## these are all variability metrics --> stability is the inverse of variability (we are interested in stability, but they will be converted later)
 
-subplot_IDs <- unique(fake_data_11sp$unique_ID)
+subplot_IDs <- unique(fake_data_11sp$unique_ID) #so that we can call every subplot on its own
 
 # for every subplot_ID:
 for (i in 1:length(subplot_IDs)) {
@@ -126,7 +118,7 @@ stability_data_scale1_11sp$Intended_BetaDiv <- as.numeric(rep(1, nrow(stability_
 
 # Part 2: Simulate beta diversity = 1 across all scales; i.e. maintain the same species compositions and increase area from 2-8
 
-Step 1. Separate years and then species compositions so that we can subsample within them. 
+## Step 1. Separate years and then species compositions so that we can subsample within them. 
 
 ```{r divide dataset into a list of 4, results = FALSE}
 
@@ -145,10 +137,11 @@ for (i in year.id) { # for every year
 }
 ```
 
-Step 2. Retrieve Stability Metrics for all other areas (2-8) 
+## Step 2. Retrieve Stability Metrics for all other areas (2-8) 
 Sample without replacement - this allows to use all unique combinations of subplots for each species composition and area
 
 ```{r beta_div1 & Area2-8, results = FALSE}
+
 # create a list of 8 to store data for each area
 Areas_unique_11sp <- list(1:8)
 Areas_unique_11sp[[1]] <- subset(stability_data_scale1_11sp, select = -17) # add data for community stability to list without last column to maintain dimensions
@@ -187,41 +180,37 @@ for (A in 2:8) { # loop through areas 2-8 --> we don't want to loop through Area
       for (i in 1:resamplings) {
         # create a sample containing only the combination of row i from the matrix of all possible combinations
         year1scale_area <- plotIDs.scale_area[[j]][i, 1:A]
-        # by setting replace = F  the same subplot is not sampled A times in the same sample
-        # setting replace = F increases the nrows of the final dataframes in Areas[[A]]
-        # but it also seems to be problematic for A=8
-        ## --> I think that is because for comp.id "ca" there are only 7 unique_id's and therefore sample size (A) > population
-        ## (data.list.comp[[1]][[j]]$unique_ID)
+        
 
-        if (A == 2) {
+        if (A == 2) { # if Area is 2, i.e. composed of 2 subplots, execute the following:
           # create a temporary data set that has only the subplots we sampled
           temp <- data.list.comp[[1]][[j]][data.list.comp[[1]][[j]]$unique_ID == year1scale_area[1] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[2], ]
 
-          # aggregate the data so that we have the summed biomass across our two subplots
+          # aggregate the data so that we have the summed biomass across our subplots
           scale_area.temp <- aggregate(total.biomass ~ year + div + unique_ID + sown_species_comp + an + ar + lu + or + po + tr + ve + fe + ru + ho + kn, data = temp, FUN = sum)
 
           # give each sample a unique sample id
           scale_area.temp$sampleID <- as.numeric(plotIDs.scale_area[[j]][i, A + 1])
-        } else if (A == 3) {
-          # create a temporary data set that has only the two subplots we sampled
+        } else if (A == 3) { # if Area is 3, i.e. composed of 3 subplots, execute the following:
+          # create a temporary data set that has only the subplots we sampled
           temp <- data.list.comp[[1]][[j]][data.list.comp[[1]][[j]]$unique_ID == year1scale_area[1] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[2] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[3], ]
 
-          # aggregate the data so that we have the summed biomass across our two subplots
+          # aggregate the data so that we have the summed biomass across our subplots
           scale_area.temp <- aggregate(total.biomass ~ year + div + unique_ID + sown_species_comp + an + ar + lu + or + po + tr + ve + fe + ru + ho + kn, data = temp, FUN = sum)
 
           # give each sample a unique sample id
           scale_area.temp$sampleID <- as.numeric(plotIDs.scale_area[[j]][i, A + 1])
-        } else if (A == 4) {
-          # create a temporary data set that has only the two subplots we sampled
+        } else if (A == 4) {# if Area is 4, i.e. composed of 4 subplots, execute the following:
+          # create a temporary data set that has only the subplots we sampled
           temp <- data.list.comp[[1]][[j]][data.list.comp[[1]][[j]]$unique_ID == year1scale_area[1] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[2] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[3] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[4], ]
-          # aggregate the data so that we have the summed biomass across our two subplots
+          # aggregate the data so that we have the summed biomass across our subplots
           scale_area.temp <- aggregate(total.biomass ~ year + div + unique_ID + sown_species_comp + an + ar + lu + or + po + tr + ve + fe + ru + ho + kn, data = temp, FUN = sum)
 
           # give each sample a unique sample id
           scale_area.temp$sampleID <- as.numeric(plotIDs.scale_area[[j]][i, A + 1])
-        } else if (A == 5) {
+        } else if (A == 5) { # if Area is 5, i.e. composed of 5 subplots, execute the following:
           # create a temporary data set that has only the subplots we sampled
           temp <- data.list.comp[[1]][[j]][data.list.comp[[1]][[j]]$unique_ID == year1scale_area[1] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[2] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[3] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[4] |
@@ -232,37 +221,37 @@ for (A in 2:8) { # loop through areas 2-8 --> we don't want to loop through Area
 
           # give each sample a unique sample id
           scale_area.temp$sampleID <- as.numeric(plotIDs.scale_area[[j]][i, A + 1])
-        } else if (A == 6) {
-          # create a temporary data set that has only the two subplots we sampled
+        } else if (A == 6) { # if Area is 6, i.e. composed of 6 subplots, execute the following:
+          # create a temporary data set that has only the subplots we sampled
           temp <- data.list.comp[[1]][[j]][data.list.comp[[1]][[j]]$unique_ID == year1scale_area[1] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[2] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[3] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[4] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[5] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[6], ]
 
-          # aggregate the data so that we have the summed biomass across our two subplots
+          # aggregate the data so that we have the summed biomass across our subplots
           scale_area.temp <- aggregate(total.biomass ~ year + div + unique_ID + sown_species_comp + an + ar + lu + or + po + tr + ve + fe + ru + ho + kn, data = temp, FUN = sum)
 
           # give each sample a unique sample id
           scale_area.temp$sampleID <- as.numeric(plotIDs.scale_area[[j]][i, A + 1])
-        } else if (A == 7) {
-          # create a temporary data set that has only the two subplots we sampled
+        } else if (A == 7) { # if Area is 7, i.e. composed of 7 subplots, execute the following:
+          # create a temporary data set that has only the subplots we sampled
           temp <- data.list.comp[[1]][[j]][data.list.comp[[1]][[j]]$unique_ID == year1scale_area[1] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[2] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[3] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[4] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[5] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[6] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[7], ]
 
-          # aggregate the data so that we have the summed biomass across our two subplots
+          # aggregate the data so that we have the summed biomass across our subplots
           scale_area.temp <- aggregate(total.biomass ~ year + div + unique_ID + sown_species_comp + an + ar + lu + or + po + tr + ve + fe + ru + ho + kn, data = temp, FUN = sum)
 
           # give each sample a unique sample id
           scale_area.temp$sampleID <- as.numeric(plotIDs.scale_area[[j]][i, A + 1])
-        } else if (A == 8) {
-          # create a temporary data set that has only the two subplots we sampled
+        } else if (A == 8) { # if Area is 8, i.e. composed of 8 subplots, execute the following:
+          # create a temporary data set that has only the subplots we sampled
           temp <- data.list.comp[[1]][[j]][data.list.comp[[1]][[j]]$unique_ID == year1scale_area[1] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[2] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[3] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[4] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[5] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[6] |
             data.list.comp[[1]][[j]]$unique_ID == year1scale_area[7] | data.list.comp[[1]][[j]]$unique_ID == year1scale_area[8], ]
 
-          # aggregate the data so that we have the summed biomass across our two subplots
+          # aggregate the data so that we have the summed biomass across our subplots
           scale_area.temp <- aggregate(total.biomass ~ year + div + unique_ID + sown_species_comp + an + ar + lu + or + po + tr + ve + fe + ru + ho + kn, data = temp, FUN = sum)
 
           # give each sample a unique sample id
@@ -281,30 +270,30 @@ for (A in 2:8) { # loop through areas 2-8 --> we don't want to loop through Area
     for (j in 1:43) { # loops across our species compositions
       for (i in 1:resamplings) { # loops across our resamplings
         if (!is.na(plotIDs.scale_area[[j]][i])) { # tests that there is not a NA for the subplot combination --> if there were not 8 subplots, NAs were inserted at
-          # plotIDs.scale_area[[j]]
+          # plotIDs.scale_area[[j]], which means that this combination cannot be used --> therefore, if there are no NAs, execute the following code
 
-          if (A == 2) {
+          if (A == 2) { # if Area is 2, i.e. composed of 2 subplots, execute the following:
             temp <- data.list.comp[[k]][[j]][data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 1] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 2], ]
-          } else if (A == 3) {
+          } else if (A == 3) { # if Area is 3, i.e. composed of 3 subplots, execute the following:
             temp <- data.list.comp[[k]][[j]][data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 1] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 2] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 3], ]
-          } else if (A == 4) {
+          } else if (A == 4) { # if Area is 4, i.e. composed of 4 subplots, execute the following:
             temp <- data.list.comp[[k]][[j]][data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 1] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 2] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 3] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 4], ]
-          } else if (A == 5) {
+          } else if (A == 5) { # if Area is 5, i.e. composed of 5 subplots, execute the following:
             temp <- data.list.comp[[k]][[j]][data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 1] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 2] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 3] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 4] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 5], ]
-          } else if (A == 6) {
+          } else if (A == 6) { # if Area is 6, i.e. composed of 6 subplots, execute the following:
             temp <- data.list.comp[[k]][[j]][data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 1] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 2] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 3] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 4] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 5] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 6], ]
-          } else if (A == 7) {
+          } else if (A == 7) { # if Area is 7, i.e. composed of 7 subplots, execute the following:
             temp <- data.list.comp[[k]][[j]][data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 1] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 2] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 3] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 4] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 5] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 6] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 7], ]
-          } else if (A == 8) {
+          } else if (A == 8) { # if Area is 8, i.e. composed of 8 subplots, execute the following:
             temp <- data.list.comp[[k]][[j]][data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 1] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 2] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 3] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 4] |
               data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 5] | data.list.comp[[k]][[j]]$unique_ID == plotIDs.scale_area[[j]][i, 6] |
@@ -312,9 +301,9 @@ for (A in 2:8) { # loop through areas 2-8 --> we don't want to loop through Area
           }
 
 
-          if (length(temp$total.biomass) > 0) { # tests if data is present since some species combinations are gone in years 2 and 3
+          if (length(temp$total.biomass) > 0) { # tests if data is present since some species combinations are gone in years 2 and 3; executes the following code only if data is present for all years
             scale_area.temp <- aggregate(total.biomass ~ year + div + unique_ID + sown_species_comp + an + ar + lu + or + po + tr + ve + fe + ru + ho + kn, data = temp, FUN = sum)
-            scale_area.temp$sampleID <- as.numeric(plotIDs.scale_area[[j]][i, A + 1]) # adds in our same sample ids so we can pretend the combinations are basically plots                     themselves
+            scale_area.temp$sampleID <- as.numeric(plotIDs.scale_area[[j]][i, A + 1]) # adds in our same sample ids so we can pretend the combinations are basically plots themselves
             # adds our new data from this run of the loop to the last data
             scale_area <- rbind(scale_area, scale_area.temp) # adds the new data to the old data
           }
@@ -394,7 +383,10 @@ for (A in 2:8) { # loop through areas 2-8 --> we don't want to loop through Area
 }
 ```
 
+# Merge and save
+
 ```{r merge and save, results = FALSE}
+
 # collapse list into 1 dataset
 Beta1_all_scales <- do.call("rbind", Areas_unique_11sp)
 
