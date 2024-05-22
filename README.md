@@ -80,6 +80,8 @@ install.packages(packages)
 The scripts needed to replicate the work are numerated. All un-numerated scripts are functions sourced in those. 
 Please run the numerated scripts in their order from 01 - 03 to ensure the required data is generated.
 
+**NOTE:** *The file 01_simulation takes a few minutes to run - don't worry if the result is not displayed right away.* 
+
 
 ## Add a citation file
 Create a citation file for your repository using [cffinit](https://citation-file-format.github.io/cff-initializer-javascript/#/)
