@@ -23,7 +23,7 @@ library(ggplot2)  # plotting
 library(viridis)  # pretty colours
 
 #load simulated data
-load("../data/processed/Beta1_all_scales.RData")
+load("../data/temp/Beta1_all_scales.RData")
 
 #load functions
 source("../scripts/PlottingFunctions.R") # for the SE function and plotting 

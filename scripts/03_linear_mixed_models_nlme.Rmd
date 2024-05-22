@@ -59,13 +59,9 @@ options(stringsAsFactors = F)
 
 ```
 
-
-######################################################################################################################################################################################
-
-
 ```{r log-transformations}
 
-#transform all variables I could potentially need so that I can easily use them 
+#transform all variables I need so that I can easily use them 
 my_data$log.gamma <- log(my_data$Gamma_stab+1)
 my_data$log.gammadiv <- log(my_data$Gamma_div+1)
 my_data$area.factor <- as.factor(my_data$Area)
