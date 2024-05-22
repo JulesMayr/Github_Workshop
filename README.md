@@ -31,6 +31,11 @@ The project structure distinguishes three kinds of folders:
 │   ├── figures        <- Figures for the manuscript or reports (PG)
 │   └── output         <- Other output for the manuscript or reports (PG)
 └── R                  <- Source code for this project (HW)
+├───renv               <- This fodler collects all packages used in this project and several subfolders (not important)
+│   ├───library
+│   │   └───windows
+│   │       └───R-4.4
+contined.
 
 ```
 
@@ -94,7 +99,7 @@ This project is licensed under the terms of the [MIT License](/LICENSE).
 
 
 
-SessionInfo() from May 22nd 2024:
+`sessionInfo()` from May 22nd 2024:
 
 ```
 R version 4.4.0 (2024-04-24 ucrt)
