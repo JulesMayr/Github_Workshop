@@ -1,4 +1,4 @@
-# Julia's Dummy Project for the UU Workshop **Best Practices for Writing Reproducible Code**
+# Julia's Dummy Project for the UU Workshop *Best Practices for Writing Reproducible Code*
 
 Dear reader, 
 
@@ -45,18 +45,16 @@ To use this Project, there are a few things to take into consideration, which wi
 
 ### 1. Access
 
-
-
 The Project can be accessed by clicking on the .Rproj file.
-This file will open up the entire project, including all folders outlined above. By utilizing this file, the relative paths will be set correctly.
+This file will open up the entire project, including all folders outlined above. By utilizing this file, the relative paths should automatically be set correctly.
 
 ### 2. Add the data
 
-The data for this project will be shared separately. Please make sure you store the shared data file in the sub folder raw  of the data folder.
+The data for this project will be shared separately. Please make sure you store the shared data file in the sub folder *raw* of the *data* folder.
 
 ### 3. Workflow
 
-#### A. Packages needed 
+#### A. Getting started
 
 Please use the following code to install all packages you need. They will be imported at the start of their respective scripts where they are used.
 
@@ -81,10 +79,20 @@ install.packages(packages)
 
 ``` 
 
+Alternatively, **all packages as well as their dependencies and their versions can be found in and downloaded from the "renv" folder**
 
-#### B. The order in which to run the scripts
+      This can be done by installing the R package renv 
+      
+      `install.packages("renv")`
+      
+      and using the restore() function
+      
+      `renv::restore()`
 
-The scripts needed to replicate the work are numerated. All un-numerated scripts are functions sourced in those. 
+
+#### B. Workflow
+
+The main scripts needed to replicate the work are numerated. All un-numerated scripts are functions sourced in those "main" scripts. 
 Please run the numerated scripts in their order from 01 - 03 to ensure the required data is generated.
 
 **NOTE:** *The file 01_simulation takes a few minutes to run - don't worry if the result is not displayed right away.* 
@@ -96,7 +104,6 @@ Create a citation file for your repository using [cffinit](https://citation-file
 ## License
 
 This project is licensed under the terms of the [MIT License](/LICENSE).
-
 
 
 `sessionInfo()` from May 22nd 2024:
@@ -138,14 +145,5 @@ loaded via a namespace (and not attached):
 [55] pkgload_1.3.4     rstudioapi_0.16.0 minqa_1.2.6       R6_2.5.1          fs_1.6.4         
 
 ```
-*All packages as well as their dependencies and their versions can be found in and downloaded from the "renv" folder*
-
-      This can be done by installing the R package renv 
-      
-      `install.packages("renv")`
-      
-      and using the restore() function
-      
-      `renv::restore()`
 
 I hope you will have fun going through my code! :) 
